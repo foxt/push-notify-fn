@@ -1,6 +1,8 @@
 // based off https://web.dev/articles/push-notifications-web-push-protocol
 
-import { generateECDHKey, hkdf, utf8Encode } from "./util.js";
+import { VAPID_CONTACT_URI, VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY_B64 } from "../config.js";
+import { WebPushRequest } from "../schemas.js";
+import { generateECDHKey, hkdf, makeJwt, toUrlSafeBase64, utf8Encode } from "./util.js";
 
 
 const withContextLength = (array: Uint8Array) => 
@@ -61,4 +63,43 @@ async function encryptForWebPush(message: string, p256dh: Uint8Array, auth: Uint
         localPublicKey: localKeys.publicBytes,
         encrypted,
     }
+}
+
+async function makeVapidJwt(endpointOrigin: string) {
+    return await makeJwt({
+        aud: endpointOrigin,
+        exp: Math.floor(Date.now() / 1000) + (12 * 60 * 60),
+        sub: VAPID_CONTACT_URI
+    }, VAPID_PRIVATE_KEY);
+}
+
+export async function sendWebPush(req: WebPushRequest) {
+    const endpointOrigin = new URL(req.subscription.endpoint).origin;
+    const vapidJwt = await makeVapidJwt(endpointOrigin);
+
+    const body = JSON.stringify(req.body);
+    const { salt, localPublicKey, encrypted } = await encryptForWebPush(
+        body,
+        req.subscription.p256dh,
+        req.subscription.auth
+    );
+
+    const headers = new Headers({
+        'Authorization': 'WebPush ' + vapidJwt,
+        "Content-Encoding": "aesgcm",
+        "Content-Type": "application/octet-stream",
+        "Content-Length": (encrypted.byteLength).toString(),
+        "Crypto-Key": `dh=${toUrlSafeBase64(localPublicKey)}; p256ecdsa=${VAPID_PUBLIC_KEY_B64}`,
+        "Encryption": `salt=${toUrlSafeBase64(salt)}`,
+        "TTL": req.ttl.toString(),
+        ...req.topic ? { "Topic": req.topic } : {},
+        ...req.urgency ? { "Urgency": req.urgency } : {},
+    });
+    const response = await fetch(req.subscription.endpoint, {
+        method: "POST",
+        headers,
+        body: encrypted,
+    });
+
+    return response;
 }

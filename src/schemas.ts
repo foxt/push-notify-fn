@@ -8,6 +8,7 @@ export const WebPushSubcription = z.object({
     p256dh: zBase64Array,
     auth: zBase64Array,
 });
+export type WebPushSubcription = z.infer<typeof WebPushSubcription>;
 
 export const WebNotification =  z.object({
     title: z.string(),
@@ -32,11 +33,15 @@ export const WebNotification =  z.object({
     timestamp: z.number().optional(),
     vibrate: z.array(z.number()).optional(),
 })
+export type WebNotification = z.infer<typeof WebNotification>;
 
 export const WebPushRequest = z.object({
     subscription: WebPushSubcription,
-    notification: WebNotification,
+    body: z.object({
+        notification: WebNotification
+    }),
     ttl: z.number().default(0),
     topic: z.string().optional(),
     urgency: z.enum(['very-low', 'low', 'normal', 'high']).optional(),
 })
+export type WebPushRequest = z.infer<typeof WebPushRequest>;
