@@ -63,3 +63,12 @@ export async function generateECDHKey() {
         privateKey: keypair.privateKey
     }
 }
+
+export const importECDSAKey = (jwk: string) =>
+    crypto.subtle.importKey(
+        "jwk",
+        JSON.parse(jwk),
+        { name: "ECDSA", namedCurve: "P-256" },
+        false,
+        ["sign"]
+    );
