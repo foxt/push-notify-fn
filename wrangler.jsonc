@@ -10,6 +10,13 @@
 	"observability": {
 		"enabled": true
 	},
+	"vars": {
+		/**
+		* Required by some browsers (namely Safari) otherwise notifications are rejected.
+		* @see https://datatracker.ietf.org/doc/html/draft-thomson-webpush-vapid#section-2.1
+		*/
+		"VAPID_CONTACT_URI": "mailto:me+pushnotifyfn@foxt.dev"
+	},
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
