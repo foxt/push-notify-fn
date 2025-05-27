@@ -19,7 +19,7 @@ export default {
 				else if (request.method == 'GET') return getRequest(request, env);
 
 
-			return new Response(request.url);
+			return env.ASSETS.fetch(request);
 		} catch(e) {
 			console.error(e);
 			return new Response((e as any).toString(), { status: 500 })
