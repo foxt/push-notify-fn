@@ -1,11 +1,23 @@
 import { handleWebPushRequest } from "./handleWebPushRequest.js";
 
+async function getRequest(request: Request, env: Env): Promise<Response> {
+	return new Response(JSON.stringify({
+		"config": {
+			"publicKey": env.VAPID_PUBLIC_KEY_B64,
+		}
+	}), {
+		headers: { "Content-Type": "application/json" }
+	});
+}
+
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		try {
 			let url = new URL(request.url);
-			if (request.method == 'POST' && url.pathname === "/function")
-				return handleWebPushRequest(request, env);
+			if (url.pathname === "/function")
+				if (request.method == 'POST') return handleWebPushRequest(request, env);
+				else if (request.method == 'GET') return getRequest(request, env);
+
 
 			return new Response(request.url);
 		} catch(e) {
