@@ -1,3 +1,10 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+</html>
 <script type="module">
     // @ts-check
     import { h, render } from 'https://esm.sh/preact';
@@ -20,7 +27,8 @@
     };
 
     const config = signal(null);
-    fetch('/function')
+    const functionURL = new URL('/function', location.href).href;
+    fetch(functionURL)
         .then(res => res.json())
         .then(data => config.value = data)
         .catch(alertError);
@@ -60,6 +68,7 @@
         if (notificationPermission.value !== 'granted') return 'permission';
         if (!serviceWorkerRegistration.value) return 'service-worker';
         if (!pushSubscription.value) return 'subscription';
+        return 'ready';
     });
         
     effect(() => {
@@ -75,30 +84,200 @@
             config: config.value,
         })
     })
+
+    const testData = computed(() => JSON.stringify({
+        subscription: {
+                endpoint: pushSubscription.value?.endpoint,
+            p256dh: toUrlSafeBase64(pushSubscription.value?.getKey('p256dh')),
+            auth: toUrlSafeBase64(pushSubscription.value?.getKey('auth')),
+        },
+        body: {
+            notification: {
+                title: "Hello, world!",
+                body: "This is a test notification.",
+                image: "https://comb.io/o8U5uP.gif",
+                icon: "https://em-content.zobj.net/source/apple/419/bell_1f514.png",
+            }
+        },
+        ttl: 60,
+        urgency: "high"
+    }, null, 2))
+    
+    function tryIt() {
+        fetch(functionURL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: testData.value
+        }).then(async res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}\n` + await res.text());
+            alert(`Notification sent!`);
+        }).catch(alertError);
+    }
     
     const App = (props) => 
         uiState.value == 'permission' ? 
-            html`<div>
-                <h1>Notification Permission</h1>
-                <p>Current permission: ${notificationPermission.value}</p>
-                <button onClick=${requestNotificationPermission}>Allow Notification Permission</button>
+            html`<div class='container status-permission'>
+                <div class='statusContainer'>
+                    <b class='emoji'>🔔</b>
+                    <h1>Notification Permission</h1>
+                    <p>Please grant permission to receive notifications.</p>
+                </div>
+                <div class='actions'>
+                    <button onClick=${requestNotificationPermission}>Allow Notification Permission</button>
+                </div>
             </div>`
-        : uiState.value == 'service-worker' ? 
-            html`<div>
-                <h1>Waiting for Service Worker</h1>
+        : uiState.value == 'ready' ? 
+            html`<div class='container status-ready'>
+                <div class='statusContainer'>
+                    <b class='emoji'>✅</b>
+                    <h1>Ready to go</h1>
+                </div>
+                <div class='request'>
+                    <span class='method'>POST</span>
+                    <span class='url'>${functionURL}</span>
+                    <pre>
+                        ${testData}
+                    </pre>
+                </div>
+                <div class='actions'>
+                    <button onClick=${tryIt}>Try it!</button>
+                </div>
             </div>`
-        : uiState.value == 'subscription' ?
-            html`<div>
-                <h1>Waiting for Subscription</h1>
-            </div>`
-        : html`<pre>
-            ${JSON.stringify({
-                endpoint: pushSubscription.value?.endpoint,
-                p256dh: toUrlSafeBase64(pushSubscription.value?.getKey('p256dh')),
-                auth: toUrlSafeBase64(pushSubscription.value?.getKey('auth')),
-            })}
-        </pre>`;
-        ;
-    
+        : html`<div class='container status-loading'>
+            <div class='statusContainer'>
+                <b class='emoji'>⏳</b>
+                <h1>One second...</h1>
+                <p>${
+                    uiState == 'service-worker' ? 'Waiting for service worker registration...'
+                    : uiState.value == 'subscription' ? 'Waiting for push subscription...'
+                    : uiState.value
+                }</p>
+            </div>
+        </div>`;
     render(h(App, {}), document.body);
 </script>
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<style>
+    :root {
+        --gray-50: light-dark(oklch(98.5% 0.002 247.839),   oklch(13% 0.028 261.692));
+        --gray-100: light-dark(oklch(96.7% 0.003 264.542),  oklch(21% 0.034 264.665));
+        --gray-200: light-dark(oklch(92.9% 0.013 255.508),  oklch(27.8% 0.033 256.848));
+        --gray-300: light-dark(oklch(87.2% 0.01 258.338),   oklch(37.3% 0.034 259.733));
+        --gray-400: light-dark(oklch(70.7% 0.022 261.325),  oklch(44.6% 0.03 256.802));
+        --gray-500: oklch(55.1% 0.027 264.364);
+        --gray-600: light-dark(oklch(44.6% 0.03 256.802),   oklch(70.7% 0.022 261.325));
+        --gray-700: light-dark(oklch(37.3% 0.034 259.733),  oklch(87.2% 0.01 258.338));
+        --gray-800: light-dark(oklch(27.8% 0.033 256.848),  oklch(92.9% 0.013 255.508));
+        --gray-900: light-dark(oklch(21% 0.034 264.665),    oklch(96.7% 0.003 264.542));
+        --gray-950: light-dark(oklch(13% 0.028 261.692),    oklch(98.5% 0.002 247.839));
+        color-scheme: light dark;
+
+        background: var(--gray-50);
+        color: var(--gray-800);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, InterVariable, Inter, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        font-feature-settings: 'liga' 1, 'calt' 1; /* fix for Chrome */
+    }
+    /* @supports (font-variation-settings: normal) {
+        :root { font-family: InterVariable, sans-serif; }
+    } */
+    body {
+        background: radial-gradient(circle at 50% 50%, var(--gray-200), var(--gray-200) 2px, var(--gray-50) 2px);
+        background-attachment: fixed;
+        background-size: 45px 45px;
+        background-position: center;
+        display: flex;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        justify-content: center;
+        align-items: center;
+    }
+    .container {
+        background: var(--gray-100);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        width: 550px;
+        max-width: 100vw;
+        padding: 1.25rem;
+        padding-inline: 1.1rem;
+        gap: 0.875rem;
+        .statusContainer {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto 1fr;
+            grid-template-areas: "emoji title" "emoji description";
+            column-gap: 0.75rem;
+            .emoji {
+                grid-area: emoji;
+                font-size: 1.75rem;
+            }
+            h1 {
+                grid-area: title;
+                margin: 0;
+                font-size: 1.5rem;
+                margin-block: 0.15rem;
+            }
+            p {
+                grid-area: description;
+                margin: 0;
+                color: var(--gray-700);
+            }
+        }
+        .actions {
+            display: flex;
+            justify-content: right;
+
+        }
+    }
+    button {
+        background: linear-gradient(to bottom, var(--gray-700), var(--gray-800));
+        color: var(--gray-50);
+        border: 1px solid var(--gray-600);
+        border-radius: 4px;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.125s ease-in-out;
+        font: inherit;
+        &:hover {
+            background: linear-gradient(to bottom, var(--gray-600), var(--gray-700));
+            border: 1px solid var(--gray-900);
+        }
+    }
+
+    .request {
+        background: #282C34;
+        color: #ABB2BF;
+        border-radius: 4px;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto 1fr;
+        grid-template-areas: "method url" "data data";
+        font-family: "JetBrains Mono", "Cascadia Code", "Menlo", "Meslo", "Roboto Mono", monospace;
+        border: 1px solid #3F4452;
+        > .method, > .url, > pre {
+            padding: 0.5rem;
+            margin: 0;
+        }
+        > .method {
+            grid-area: method;
+            color: #76A96A;
+            text-shadow: 0px 0px 4px #537253;
+        }
+        > .url {
+            grid-area: url;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        > pre {
+            grid-area: data;
+            border-top: 1px solid #3F4452;
+            overflow: auto;
+        }
+    }
+</style>
