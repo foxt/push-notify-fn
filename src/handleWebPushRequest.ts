@@ -14,8 +14,6 @@ export async function handleWebPushRequest(request: Request, env: Env): Promise<
         vapidContactUri: env.VAPID_CONTACT_URI
     }
 
-    // just forward on the response we get from the push service as there's some headers
-    // that the end user may find useful (for example, the TTL header may be altered by the push service)
-    // TODO: filter out the response so we're not sending back potentially sensitive data
-    return await sendWebPush(body, config);
+    await sendWebPush(body, config);
+    return new Response(JSON.stringify({ok: true}), { status: 200 });
 }
