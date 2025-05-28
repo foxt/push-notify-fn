@@ -2,7 +2,7 @@ import { handleWebPushRequest } from "./handleWebPushRequest.js";
 
 async function getRequest(request: Request, env: Env): Promise<Response> {
 	return new Response(JSON.stringify({
-		"name": "push-notify",
+		"name": "pushNotify",
 		"description": "Send a push notification via the Web Push API. Visit " + new URL(request.url).origin + " for more information.",
 		"input": {
 			type: "object",
