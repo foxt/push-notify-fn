@@ -15,8 +15,8 @@ export default {
 		try {
 			let url = new URL(request.url);
 			if (url.pathname === "/function") {
-				if (request.method == 'POST') return handleWebPushRequest(request, env);
-				else if (request.method == 'GET') return getRequest(request, env);
+				if (request.method == 'POST') return await handleWebPushRequest(request, env);
+				else if (request.method == 'GET') return await getRequest(request, env);
 			}
 
 
