@@ -1,13 +1,104 @@
 <script type="module">
-  import { h, render } from 'https://esm.sh/preact';
-  import htm from 'https://esm.sh/htm';
+    // @ts-check
+    import { h, render } from 'https://esm.sh/preact';
+    import { signal, useSignal, useComputed, computed, effect } from 'https://esm.sh/@preact/signals';
+    import htm from 'https://esm.sh/htm';
+    const html = htm.bind(h);
+    
+    const SWUrl = '/sw.js';
 
-  // Initialize htm with Preact
-  const html = htm.bind(h);
 
-  function App (props) {
-    return html`<h1>Hello ${props.name}!</h1>`;
-  }
+    const toUrlSafeBase64  = (buffer) =>
+        btoa(String.fromCharCode(...new Uint8Array(buffer)))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
 
-  render(html`<${App} name="World" />`, document.body);
+    const alertError = (e) => {
+        console.error(e);
+        alert(e.toString());
+    };
+
+    const config = signal(null);
+    fetch('/function')
+        .then(res => res.json())
+        .then(data => config.value = data)
+        .catch(alertError);
+
+    const notificationPermission = signal(Notification.permission);
+    const requestNotificationPermission = () => 
+        Notification.requestPermission()
+            .then(p => notificationPermission.value = p)
+            .catch(alertError);
+    
+    const serviceWorkerRegistration = signal(null);
+    const registerServiceWorker = () => 
+        navigator.serviceWorker.register(SWUrl)
+            .then(() => navigator.serviceWorker.ready)
+            .then((registration) => serviceWorkerRegistration.value = registration)
+            .catch(alertError);
+
+    
+    const pushSubscription = signal(null);
+    effect(() => {
+        if (!config.value) return;
+        let manager = serviceWorkerRegistration.value?.pushManager;
+        if (!manager) return;
+        manager?.getSubscription()
+            .then((sub) => 
+                sub ?? manager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: config.value.config.publicKey
+                })
+            )
+            .then(sub => pushSubscription.value = sub)
+            .catch(alertError);
+    })
+
+
+    const uiState = computed(() => {
+        if (notificationPermission.value !== 'granted') return 'permission';
+        if (!serviceWorkerRegistration.value) return 'service-worker';
+        if (!pushSubscription.value) return 'subscription';
+    });
+        
+    effect(() => {
+        if (uiState.value == 'service-worker') registerServiceWorker();
+    });
+
+    effect(() => {
+        console.log({
+            notificationPermission: notificationPermission.value,
+            serviceWorkerRegistration: serviceWorkerRegistration.value,
+            pushSubscription: pushSubscription.value,
+            uiState: uiState.value,
+            config: config.value,
+        })
+    })
+    
+    const App = (props) => 
+        uiState.value == 'permission' ? 
+            html`<div>
+                <h1>Notification Permission</h1>
+                <p>Current permission: ${notificationPermission.value}</p>
+                <button onClick=${requestNotificationPermission}>Allow Notification Permission</button>
+            </div>`
+        : uiState.value == 'service-worker' ? 
+            html`<div>
+                <h1>Waiting for Service Worker</h1>
+            </div>`
+        : uiState.value == 'subscription' ?
+            html`<div>
+                <h1>Waiting for Subscription</h1>
+            </div>`
+        : html`<pre>
+            ${JSON.stringify({
+                endpoint: pushSubscription.value?.endpoint,
+                p256dh: toUrlSafeBase64(pushSubscription.value?.getKey('p256dh')),
+                auth: toUrlSafeBase64(pushSubscription.value?.getKey('auth')),
+            })}
+        </pre>`;
+        ;
+    
+    render(h(App, {}), document.body);
 </script>

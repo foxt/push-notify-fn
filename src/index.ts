@@ -14,9 +14,10 @@ export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		try {
 			let url = new URL(request.url);
-			if (url.pathname === "/function")
+			if (url.pathname === "/function") {
 				if (request.method == 'POST') return handleWebPushRequest(request, env);
 				else if (request.method == 'GET') return getRequest(request, env);
+			}
 
 
 			return env.ASSETS.fetch(request);
