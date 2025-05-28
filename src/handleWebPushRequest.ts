@@ -3,7 +3,7 @@ import { importECDSAKey } from "./crypto/util.js";
 import { WebPushRequest } from "./schemas.js";
 
 export async function handleWebPushRequest(request: Request, env: Env): Promise<Response> {
-    let body = WebPushRequest.parse(request.json());
+    let body = WebPushRequest.parse(await request.json());
     let ratelimited = await env.ratelimit.limit({
         key: request.headers.get("cf-connecting-ip") || "unknown",
     })
